@@ -89,7 +89,20 @@ textarea::placeholder,input::placeholder{color:rgba(196,212,232,.2);}
 .custom-row input::placeholder{color:rgba(196,212,232,.2);}
 .btn-donate{width:100%;padding:17px;background:linear-gradient(135deg,rgba(140,50,60,.5),rgba(212,128,138,.35));border:1px solid rgba(212,128,138,.35);border-radius:12px;color:rgba(255,220,220,.95);font-family:'Jost',sans-serif;font-weight:500;font-size:13px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;transition:all .3s;box-shadow:0 6px 24px rgba(212,100,110,.18);}
 .btn-donate:hover{background:linear-gradient(135deg,#8c323c,#d4808a);transform:translateY(-2px);box-shadow:0 10px 32px rgba(212,100,110,.38);}
-.donate-fine{font-size:11.5px;color:rgba(196,212,232,.3);margin-top:15px;line-height:1.7;}
+
+/* PAYMENT BUTTONS */
+.payment-btns{display:flex;flex-direction:column;gap:12px;margin-bottom:6px;}
+.pay-btn{display:flex;align-items:center;gap:14px;padding:16px 20px;border-radius:14px;text-decoration:none;transition:all .3s;position:relative;overflow:hidden;}
+.pay-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.04),transparent);pointer-events:none;}
+.pay-kofi{background:rgba(255,95,60,.08);border:1px solid rgba(255,95,60,.25);color:rgba(255,200,180,.9);}
+.pay-kofi:hover{background:rgba(255,95,60,.18);border-color:rgba(255,95,60,.5);transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,95,60,.2);}
+.pay-gcash{background:rgba(0,120,255,.08);border:1px solid rgba(0,120,255,.25);color:rgba(160,200,255,.9);}
+.pay-gcash:hover{background:rgba(0,120,255,.18);border-color:rgba(0,120,255,.5);transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,120,255,.2);}
+.pay-icon{font-size:1.5rem;flex-shrink:0;}
+.pay-info{display:flex;flex-direction:column;text-align:left;flex:1;}
+.pay-name{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:400;line-height:1.2;}
+.pay-sub{font-size:11px;opacity:.55;letter-spacing:.5px;margin-top:2px;}
+.pay-arrow{font-size:1rem;opacity:.5;flex-shrink:0;}
 
 footer{text-align:center;padding:0 24px 50px;font-size:11px;color:rgba(122,146,176,.3);letter-spacing:2px;text-transform:uppercase;}
 
@@ -239,7 +252,7 @@ input[type=number]::placeholder{color:rgba(196,212,232,.2);}
       <!-- 🐾 SECRET: tap 5 times fast to open admin -->
       <span class="paw" id="secret-paw">🐾</span>
       <div class="donate-title">Help shelter animals</div>
-      <p class="donate-desc">Your words carry hope — and so does your generosity. Every dollar raised here goes to feeding, healing, and rehoming animals in need.</p>
+      <p class="donate-desc">Your words carry hope — and so does your generosity. Every donation goes directly to feeding, healing, and rehoming animals in need.</p>
       <div class="progress-block">
         <div class="prog-meta">
           <span class="prog-raised" id="raised-disp">$0</span>
@@ -248,17 +261,29 @@ input[type=number]::placeholder{color:rgba(196,212,232,.2);}
         <div class="bar-bg"><div class="bar-fill" id="bar-fill"></div></div>
         <div class="prog-pct" id="prog-pct">0% of goal reached</div>
       </div>
-      <div class="amounts">
-        <button class="amt" onclick="pickAmt(this,5)">$5</button>
-        <button class="amt" onclick="pickAmt(this,10)">$10</button>
-        <button class="amt" onclick="pickAmt(this,25)">$25</button>
-        <button class="amt" onclick="pickAmt(this,50)">$50</button>
+
+      <p style="font-size:12px;color:rgba(196,212,232,.35);margin-bottom:18px;letter-spacing:1px;">Choose how you'd like to donate:</p>
+
+      <div class="payment-btns">
+        <a class="pay-btn pay-kofi" href="https://ko-fi.com/" target="_blank" rel="noopener">
+          <span class="pay-icon">☕</span>
+          <span class="pay-info">
+            <span class="pay-name">Ko-fi</span>
+            <span class="pay-sub">Support via Ko-fi</span>
+          </span>
+          <span class="pay-arrow">↗</span>
+        </a>
+        <a class="pay-btn pay-gcash" href="https://gcash.com/" target="_blank" rel="noopener">
+          <span class="pay-icon">💙</span>
+          <span class="pay-info">
+            <span class="pay-name">GCash</span>
+            <span class="pay-sub">Send via GCash</span>
+          </span>
+          <span class="pay-arrow">↗</span>
+        </a>
       </div>
-      <div class="custom-row">
-        <input type="number" id="camt" placeholder="Or enter your own amount ($)" min="1">
-      </div>
-      <button class="btn-donate" onclick="donate()">🐾 &nbsp; Donate Now</button>
-      <p class="donate-fine">Replace the donate button with your real payment link (PayPal, GCash, etc.)<br>All funds go directly to the animal shelter. 🐶🐱</p>
+
+      <p class="donate-fine">After donating, please message us so we can update the total! 🐶🐱</p>
     </div>
   </div>
 
@@ -352,6 +377,7 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 const donRef = doc(db, 'shelter', 'donations');
+const msgsRef = doc(db, 'shelter', 'messages');
 
 /* ── FIREBASE LIVE LISTENER ── */
 const GOAL = 2000;
@@ -373,6 +399,29 @@ async function saveToFirebase() {
   await setDoc(donRef, { raised, history: donHistory }, { merge: true });
 }
 
+/* ── MESSAGES FIREBASE LISTENER ── */
+let msgsLoaded = false;
+onSnapshot(msgsRef, snap => {
+  const prev = messages.length;
+  if (snap.exists()) {
+    messages = snap.data().list || [];
+  } else {
+    messages = [...defaultMessages];
+  }
+  renderMessages();
+  // Only add dots + launch plane for brand new messages after initial load
+  if (msgsLoaded && messages.length > prev) {
+    const newest = messages[messages.length - 1];
+    msgDots.push({lat:-60+Math.random()*120,lon:-170+Math.random()*340,ph:Math.random()*Math.PI*2});
+    launchPlane(newest.text, newest.name);
+  }
+  if (!msgsLoaded) {
+    msgsLoaded = true;
+    // seed dots for existing messages
+    messages.forEach(()=>msgDots.push({lat:-60+Math.random()*120,lon:-170+Math.random()*340,ph:Math.random()*Math.PI*2}));
+  }
+});
+
 function updateProgress() {
   const pct = Math.min(raised / GOAL * 100, 100);
   document.getElementById('raised-disp').textContent = `$${raised.toLocaleString()}`;
@@ -380,25 +429,7 @@ function updateProgress() {
   document.getElementById('prog-pct').textContent = `${pct.toFixed(1)}% of goal reached`;
 }
 
-/* ── DONATE (public) ── */
-let selAmt = 0;
-window.pickAmt = function(btn, val) {
-  document.querySelectorAll('.amt').forEach(b => b.classList.remove('sel'));
-  btn.classList.add('sel'); selAmt = val;
-  document.getElementById('camt').value = '';
-};
-window.donate = async function() {
-  const custom = parseFloat(document.getElementById('camt').value);
-  const amt = custom > 0 ? custom : selAmt;
-  if (!amt || amt <= 0) { showToast('🐾 Please choose or enter an amount'); return; }
-  raised += amt;
-  donHistory.push({ type:'add', amt, note:'Public donation', time: tsNow() });
-  await saveToFirebase();
-  document.getElementById('camt').value = '';
-  document.querySelectorAll('.amt').forEach(b => b.classList.remove('sel'));
-  selAmt = 0;
-  showToast(`💛 Thank you! $${amt} donated for the shelter animals`);
-};
+/* ── DONATE — read only, admin updates raised ── */
 
 /* ══════════════════════════════════
    SECRET PAW — tap 5x to open admin
@@ -548,10 +579,29 @@ function makeSVG(){return `<svg xmlns="http://www.w3.org/2000/svg" width="56" he
 function launchPlane(text,name){const wrap=document.createElement('div');wrap.className='plane-wrap';const sw=planeStage.offsetWidth,sh=planeStage.offsetHeight;const side=Math.floor(Math.random()*4);let sx,sy;if(side===0){sx=Math.random()*sw;sy=-30;}else if(side===1){sx=sw+30;sy=Math.random()*sh;}else if(side===2){sx=Math.random()*sw;sy=sh+30;}else{sx=-30;sy=Math.random()*sh;}const ex=sw-sx+(Math.random()*80-40);const ey=sh-sy+(Math.random()*80-40);const dx=ex-sx,dy=ey-sy;const goingLeft=dx<0;const tiltAngle=Math.max(-55,Math.min(55,goingLeft?-Math.atan2(dy,-dx)*180/Math.PI:Math.atan2(dy,dx)*180/Math.PI));const flipX=goingLeft?-1:1;const dur=11000+Math.random()*4000;const label=document.createElement('div');label.className='plane-label';label.textContent=`"${text.length>55?text.slice(0,52)+'…':text}" — ${name||'Anonymous'}`;wrap.innerHTML=makeSVG();wrap.appendChild(label);wrap.style.cssText=`left:${sx}px;top:${sy}px;transform:scaleX(${flipX}) rotate(${tiltAngle}deg);transform-origin:center center;`;planeStage.appendChild(wrap);setTimeout(()=>{label.style.opacity='1';},dur*.38);setTimeout(()=>{label.style.opacity='0';},dur*.72);const t0=performance.now();function anim(now){const prog=Math.min((now-t0)/dur,1);const e=prog<.5?2*prog*prog:-1+(4-2*prog)*prog;wrap.style.left=(sx+(ex-sx)*e)+'px';wrap.style.top=(sy+(ey-sy)*e+Math.sin(prog*Math.PI*3)*10)+'px';if(prog<1)requestAnimationFrame(anim);else wrap.remove();}requestAnimationFrame(anim);}
 
 /* ── MESSAGES ── */
-let messages=[{text:"Be kind — everyone is carrying a weight you cannot see.",name:"Maya"},{text:"To every stray out there — you are seen and loved.",name:"Sofia"},{text:"Love more than you fear.",name:"Anonymous"},{text:"Small acts of kindness ripple outward forever.",name:"James"},{text:"The world is hard — but you are harder.",name:"Ryu"}];
-function renderMessages(){const list=document.getElementById('msg-list');list.innerHTML='';messages.slice().reverse().forEach((m,i)=>{const c=document.createElement('div');c.className='msg-card';c.style.animationDelay=(i*.07)+'s';c.innerHTML=`<div class="msg-quote">"${m.text}"</div><div class="msg-author">— ${m.name||'Anonymous'}</div>`;list.appendChild(c);});}
+const defaultMessages = [
+  {text:"Be kind — everyone is carrying a weight you cannot see.",name:"Maya"},
+  {text:"To every stray out there — you are seen and loved.",name:"Sofia"},
+  {text:"Love more than you fear.",name:"Anonymous"},
+  {text:"Small acts of kindness ripple outward forever.",name:"James"},
+  {text:"The world is hard — but you are harder.",name:"Ryu"}
+];
+let messages = [...defaultMessages];
+
+function renderMessages(){
+  const list=document.getElementById('msg-list');
+  list.innerHTML='';
+  messages.slice().reverse().forEach((m,i)=>{
+    const c=document.createElement('div');
+    c.className='msg-card';
+    c.style.animationDelay=(i*.07)+'s';
+    c.innerHTML=`<div class="msg-quote">"${m.text}"</div><div class="msg-author">— ${m.name||'Anonymous'}</div>`;
+    list.appendChild(c);
+  });
+}
 renderMessages();
-window.sendMsg = function(){
+
+window.sendMsg = async function(){
   const txt=document.getElementById('msg').value.trim();
   const nm=document.getElementById('uname').value.trim();
   if(!txt){showToast('✦ Please write a message first');return;}
@@ -559,7 +609,7 @@ window.sendMsg = function(){
   // 24hr cooldown check
   const lastSent = parseInt(localStorage.getItem('msg_last_sent') || '0');
   const now = Date.now();
-  const COOLDOWN = 24 * 60 * 60 * 1000; // 24 hours in ms
+  const COOLDOWN = 24 * 60 * 60 * 1000;
   if(lastSent && now - lastSent < COOLDOWN) {
     const remaining = COOLDOWN - (now - lastSent);
     const hrs = Math.floor(remaining / 3600000);
@@ -568,10 +618,14 @@ window.sendMsg = function(){
     return;
   }
 
-  messages.push({text:txt,name:nm||'Anonymous'});
+  const newMsg = {text: txt, name: nm||'Anonymous', ts: Date.now()};
+  messages.push(newMsg);
+  // Save to Firebase so it persists for everyone
+  await setDoc(msgsRef, { list: messages }, { merge: false });
+
   renderMessages();
   msgDots.push({lat:-60+Math.random()*120,lon:-170+Math.random()*340,ph:Math.random()*Math.PI*2});
-  launchPlane(txt,nm||'Anonymous');
+  launchPlane(txt, nm||'Anonymous');
   localStorage.setItem('msg_last_sent', now.toString());
   document.getElementById('msg').value='';
   document.getElementById('uname').value='';
@@ -604,7 +658,14 @@ function updateSendBtn() {
   }
 }
 updateSendBtn();
-setTimeout(()=>{messages.forEach((m,i)=>{setTimeout(()=>launchPlane(m.text,m.name),i*1900);msgDots.push({lat:-60+Math.random()*120,lon:-170+Math.random()*340,ph:Math.random()*Math.PI*2});});},1200);
+// Launch planes once on first load — Firebase listener will handle ongoing updates
+let planesSeeded = false;
+setTimeout(()=>{
+  if(!planesSeeded) {
+    planesSeeded = true;
+    messages.forEach((m,i)=>{setTimeout(()=>launchPlane(m.text,m.name),i*1900);});
+  }
+},1800);
 setInterval(()=>{if(messages.length){const m=messages[Math.floor(Math.random()*messages.length)];launchPlane(m.text,m.name);}},7000);
 
 /* ── TOAST ── */
